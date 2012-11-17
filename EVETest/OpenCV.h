@@ -1,5 +1,4 @@
-#ifndef OPENCV_H
-#define OPENCV_H
+#pragma once
 
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
@@ -18,5 +17,3 @@ bool findAsteroidOnScreen(Point &loc);
 
 void captureScreen(HWND window, string imgName);
 void writeBmp(string name,int W,int H,int Bpp,int* data);
-
-#endif

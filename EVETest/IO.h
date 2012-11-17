@@ -1,5 +1,4 @@
-#ifndef IO_H
-#define IO_H
+#pragma once
 
 void ClickMouse();
 void RightClickMouse();
@@ -14,5 +13,3 @@ void pressKey(unsigned short key);
 //void scrollMouseDown();
 
 void setFG();
-
-#endif

@@ -79,7 +79,6 @@
     <None Include="ReadMe.txt" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="Image.h" />
     <ClInclude Include="IO.h" />
     <ClInclude Include="OpenCV.h" />
     <ClInclude Include="stdafx.h" />
@@ -89,7 +88,6 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="EVETest.cpp" />
-    <ClCompile Include="Image.cpp" />
     <ClCompile Include="IO.cpp" />
     <ClCompile Include="OpenCV.cpp" />
     <ClCompile Include="OpenCVDebug.cpp" />

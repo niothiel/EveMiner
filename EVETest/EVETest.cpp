@@ -3,9 +3,12 @@
 
 #include "stdafx.h"
 
+#include "IO.h"
 #include "OpenCV.h"
 #include "Timer.h"
-#include "IO.h"
+#include "Util.h"
+
+using namespace std;
 
 HWND eveWindow;			// Our global handle to the eve window
 int width;				// Client window resolution
@@ -25,6 +28,7 @@ void openOverviewMine();
 void openOverviewGates();
 void openOverviewStations();
 bool openOreHold();
+bool openInv();
 
 bool isAsteroidLocked();
 bool isInWarp();
@@ -41,13 +45,9 @@ bool waitForWarp();
 bool waitUntilDocked();
 
 void OpenCVTest();
-void imageTest(char* img, char* temp);
 void getNumber();
 void setOverviewLocation();
-void fatalExit(string msg);
 void moveMouseAway();
-
-string formatTime(unsigned long time_millis);
 
 Timer t(1);			// The run timer.
 Point overviewLoc;	// Location of the first entry in the overview, set when undocked.
@@ -117,7 +117,8 @@ int main() {
 		undock();
 
 		if(!isDocked() && runOnce) {					// Reset the overview by scrolling up on it so the closest objects appear on the screen.
-			MoveMouse(width - 80, height / 3, 0);		// Move mouse to the overview
+			// Don't really need to scroll the overview very much.
+			//MoveMouse(width - 80, height / 3, 0);		// Move mouse to the overview
 			//for(int x = 0; x < 10; x++) {				// Scroll up on the overview to make sure the closest distance things are up first.
 			//	scrollMouseUp();
 			//	Sleep(200);
@@ -160,32 +161,58 @@ in_rens:
 	return 0;
 }
 
-void imageTest(char* image, char* temp) {
-	Point p;
-	double corr;
-
-	findInImage(image, temp, p, corr);
-
-	cout << "Analysing " << image << " for " << temp << endl;
-	cout << "Correlation: " << corr << " located at: " << p.x << ", " << p.y << endl;
+bool isStopped() {
+	return isImageOnScreen("stopped.bmp", 0.98);
 }
 
-string formatTime(unsigned long time_millis) {
-	unsigned long hours = time_millis / (60 * 60 * 1000);
-	unsigned long mins = time_millis / 1000 / 60 % 60;
-	unsigned long seconds = time_millis / 1000 % 60;
+bool isInWarp() {
+	return isImageOnScreen("warpdrive.bmp", 0.91);
+}
 
-	ostringstream oStream;
+bool isInvOpen() {
+	double corr;
+	findOnScreen("inv_cargoopen.bmp", corr);
 
-	if(hours)
-		oStream << hours << "h ";
-	if(mins)
-		oStream << mins << "m ";
-	oStream << seconds << "s";
+	return corr > 0.95;
+}
 
-	cout << "Timestamp currently: " << oStream.str() << endl;
+bool isDocked(Point &p) {
+	double corr;
 
-	return oStream.str();
+	findOnScreen("undock.bmp", p, corr);
+	return corr > 0.85;
+}
+
+bool isDocked() {
+	Point p;
+
+	return isDocked(p);
+}
+
+bool isInvFull() {
+	if(!openInv()) {
+		cout << "Failed to open inventory!" << endl;
+		return false;
+	}
+
+	return isImageOnScreen("cargofull.bmp", 0.999);
+}
+
+// Returns whether or not the ship is currently located in the particular system.
+bool isInSystem(string systemName) {
+	cout << "Checking if you are in: " << systemName << endl;
+
+	openOverviewStations();
+
+	ostringstream os;
+	os << "nav_" << systemName << ".bmp";					// Build the search string for the overview.
+	string imgStr = os.str();
+
+	return isImageOnScreen(imgStr, 0.99);					// If the system name is shown in the stations overview, we are in this system.
+}
+
+bool isAsteroidLocked() {
+	return isImageOnScreen("veld_lock.bmp", 0.98);
 }
 
 bool waitForWarp() {
@@ -213,10 +240,6 @@ bool waitForWarp() {
 	return true;
 }
 
-bool isStopped() {
-	return isImageOnScreen("stopped.bmp", 0.98);
-}
-
 bool waitToStop() {
 	Timer t(40000);								// Seems like a reasonable time to stop.
 
@@ -229,10 +252,6 @@ bool waitToStop() {
 
 	cout << "Detected that you've stopped." << endl;
 	return true;
-}
-
-bool isInWarp() {
-	return isImageOnScreen("warpdrive.bmp", 0.91);
 }
 
 bool selectAsteroid() {
@@ -350,15 +369,6 @@ bool selectRightClickMenu(char* firstAction, char* secondAction) {
 	return true;
 }
 
-bool isInvOpen() {
-	double corr;
-
-	findOnScreen("inv_cargoopen.bmp", corr);
-	//cout << "Item hangar prescence corr: " << corr << endl;
-
-	return corr > 0.95;
-}
-
 bool openInv() {
 	if(!isInvOpen()) {
 		keyDown(VK_MENU);				// Send alt.
@@ -377,6 +387,24 @@ bool openOreHold() {
 	clickImageOnScreen("inv_shipselect.bmp", 0.95);
 										// Then click the orehold.
 	return clickImageOnScreen("inv_orehold.bmp", 0.95);
+}
+
+void _openOverview(string name) {
+	MoveMouse(width - 20, height - 20, 0);					// Move the mouse out of the way to not get in the way of image recognition.
+
+	clickImageOnScreen(name, 0.95);
+}
+
+void openOverviewGates() {
+	return _openOverview("overview_gates.bmp");
+}
+
+void openOverviewMine() {
+	return _openOverview("overview_mining.bmp");
+}
+
+void openOverviewStations() {
+	return _openOverview("overview_stations.bmp");
 }
 
 void depositOre() {
@@ -403,28 +431,6 @@ void depositOre() {
 		else
 			break;
 	}
-}
-
-bool isDocked(Point &p) {
-	double corr;
-
-	findOnScreen("undock.bmp", p, corr);
-	return corr > 0.85;
-}
-
-bool isDocked() {
-	Point p;
-
-	return isDocked(p);
-}
-
-bool isInvFull() {
-	if(!openInv()) {
-		cout << "Failed to open inventory!" << endl;
-		return false;
-	}
-
-	return isImageOnScreen("cargofull.bmp", 0.999);
 }
 
 bool undock() {
@@ -471,41 +477,6 @@ bool waitUntilDocked() {
 	Sleep(400);
 	cout << "Docked!" << endl;
 	return true;
-}
-
-void _openOverview(string name) {
-	MoveMouse(width - 20, height - 20, 0);					// Move the mouse out of the way to not get in the way of image recognition.
-
-	clickImageOnScreen(name, 0.95);
-}
-
-void openOverviewGates() {
-	return _openOverview("overview_gates.bmp");
-}
-
-void openOverviewMine() {
-	return _openOverview("overview_mining.bmp");
-}
-
-void openOverviewStations() {
-	return _openOverview("overview_stations.bmp");
-}
-
-// Returns whether or not the ship is currently located in the particular system.
-bool isInSystem(string systemName) {
-	cout << "Checking if you are in: " << systemName << endl;
-
-	openOverviewStations();
-
-	ostringstream os;
-	os << "nav_" << systemName << ".bmp";					// Build the search string for the overview.
-	string imgStr = os.str();
-
-	return isImageOnScreen(imgStr, 0.99);					// If the system name is shown in the stations overview, we are in this system.
-}
-
-bool isAsteroidLocked() {
-	return isImageOnScreen("veld_lock.bmp", 0.98);
 }
 
 bool waitForSystem(string systemName) {
@@ -589,12 +560,6 @@ void setOverviewLocation() {
 
 	overviewLoc = p;
 	cout << "Found overview start at: " << p.x << ", " << p.y << endl;
-}
-
-void fatalExit(string msg) {
-	cout << "Fatal: " << msg << endl;
-	cout << "Exiting in 30 seconds." << endl;
-	exit(1);
 }
 
 void moveMouseAway() {

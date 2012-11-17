@@ -12,6 +12,4 @@
 #include <Windows.h>
 #include <iostream>
 
-using namespace std;
-
 // TODO: reference additional headers your program requires here

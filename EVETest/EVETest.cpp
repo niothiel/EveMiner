@@ -2,14 +2,10 @@
 //
 
 #include "stdafx.h"
-#include <windows.h>
-#include <iostream>
 
 #include "OpenCV.h"
 #include "Timer.h"
 #include "IO.h"
-
-using namespace std;
 
 HWND eveWindow;			// Our global handle to the eve window
 int width;				// Client window resolution
@@ -81,9 +77,6 @@ int main() {
 	GetClientRect(eveWindow, &rect);
 	width = rect.right;
 	height = rect.bottom;
-
-	//captureScreen(eveWindow, "test.bmp");
-	//return 0;
 
 	// Figure out where we are, and hopefully where we need to go.
 	if(isDocked()) {
@@ -255,8 +248,8 @@ bool selectAsteroid() {
 	}
 
 	MoveMouse(p.x, p.y, 1);					// Click on it.
-	clickImageOnScreen("nav_lock.bmp", 0.99);
-	//pressKey(VK_LCONTROL);					// Target.
+	//clickImageOnScreen("nav_lock.bmp", 0.99);
+	pressKey(VK_LCONTROL);					// Target.
 	Sleep(5000);							// Wait for target lock.
 	// Check for lock symbol here!!!
 

@@ -13,4 +13,6 @@ void pressKey(unsigned short key);
 //void scrollMouseUp();
 //void scrollMouseDown();
 
+void setFG();
+
 #endif

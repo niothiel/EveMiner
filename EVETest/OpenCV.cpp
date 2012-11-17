@@ -1,9 +1,5 @@
 #include "stdafx.h"
 
-#include <iostream>
-#include <stdio.h>
-#include <Windows.h>
-
 #include "OpenCV.h"
 #include "Timer.h"
 #include "IO.h"
@@ -17,93 +13,7 @@ extern Point overviewLoc;	// Location of the first entry in the overview, set wh
 
 using namespace std;
 
-void captureScreen1(HWND window, string imgName) {
-	RECT rc;
-    HWND hwnd = window;
-    if (hwnd == NULL)
-    {
-        cout << "it can't find any 'note' window" << endl;
-    }
-    GetClientRect(hwnd, &rc);
-
-	//SetForegroundWindow(window);
-    //create
-    HDC hdcScreen = GetDC(window);
-    HDC hdc = CreateCompatibleDC(hdcScreen);
-    HBITMAP hbmp = CreateCompatibleBitmap(hdcScreen, 
-        rc.right - rc.left, rc.bottom - rc.top);
-    SelectObject(hdc, hbmp);
-
-    //Print to memory hdc
-    PrintWindow(hwnd, hdc, PW_CLIENTONLY);
-
-    //copy to clipboard
-    OpenClipboard(NULL);
-    EmptyClipboard();
-    SetClipboardData(CF_BITMAP, hbmp);
-    CloseClipboard();
-
-    //release
-    DeleteDC(hdc);
-    DeleteObject(hbmp);
-    ReleaseDC(NULL, hdcScreen);
-}
-
-void captureScreen2(HWND window, string imgName)
-{
-	Timer t(1);
-
-	HDC WinDC;
-	HDC CopyDC;
-	HBITMAP hBitmap;
-	ULONG bWidth, bHeight;
-
-	//SetForegroundWindow(eveWindow);
-	Sleep(100);
-	WinDC = GetDC (window);
-	CopyDC = CreateCompatibleDC (WinDC);
-
-	RECT rect;
-	GetClientRect(window, &rect);
-
-	bWidth =  abs(rect.right - rect.left);
-	bHeight = abs(rect.bottom - rect.top);
-
-	hBitmap = CreateCompatibleBitmap(WinDC, bWidth, bHeight);
-	SelectObject(CopyDC, hBitmap);
-	PrintWindow(window, CopyDC, PW_CLIENTONLY);
-	
-	//BitBlt(CopyDC, 0, 0, bWidth, bHeight, WinDC, 0, 0, SRCCOPY);
-               
-	ReleaseDC(window, WinDC);
-	DeleteDC(CopyDC);
-
-	RGBQUAD *image;
-	try {
-		image = new RGBQUAD[bWidth*bHeight];
-	}
-	catch(std::bad_alloc)
-	{
-		return;
-	}
-
-	GetBitmapBits(hBitmap, bWidth*bHeight*4, image);
-	writeBmp(imgName, bWidth, bHeight, 32, (int*)image);
-
-	delete image;
-
-	DeleteObject(hBitmap);
-
-#ifdef OPENCV_TEST
-	cout << "Capture Screen took " << t.elapsed() << " ms" << endl;
-#endif
-}
-
 void captureScreen(HWND window, string imgName) {
-
-	//captureScreen1(window, imgName);
-	//return;
-
 	Timer t(1);
 
 	HDC WinDC;
@@ -111,7 +21,8 @@ void captureScreen(HWND window, string imgName) {
 	HBITMAP hBitmap;
 	ULONG bWidth, bHeight;
 
-	//SetForegroundWindow(eveWindow);
+	//SetForegroundWindow(eveWindow);								// TODO: Figure out what to do here.
+	//setFG();
 	Sleep(100);
 	WinDC = GetDC (window);
 	CopyDC = CreateCompatibleDC (WinDC);
@@ -218,7 +129,7 @@ bool findAsteroidOnScreen(Point &loc) {
 
 	result.create( result_cols, result_rows, CV_32FC1 );
 
-	/// Do the Matching and Normalize
+	/// Do the matching
 	matchTemplate( img, templ, result, 1 );
 
 	loc.x = -1;
@@ -281,10 +192,6 @@ void findInImage(string image, string temp, Point &loc, double &correlation) {
 	img = imread(image, 1 );
 	templ = imread(temp, 1 );
 
-	/// Source image to display
-	Mat img_display;
-	img.copyTo( img_display );
-
 	/// Create the result matrix
 	int result_cols = img.cols - templ.cols + 1;
 	int result_rows = img.rows - templ.rows + 1;
@@ -307,7 +214,6 @@ void findInImage(string image, string temp, Point &loc, double &correlation) {
 	minMaxLoc( result, &minVal, &maxVal, &minLoc, &maxLoc, Mat() );
 
 	/// For SQDIFF and SQDIFF_NORMED, the best matches are lower values. For all the other methods, the higher the better
-
 	if( match_method  == CV_TM_SQDIFF || match_method == CV_TM_SQDIFF_NORMED ) {
 		matchLoc = minLoc;
 		matchVal = 1 - minVal;
@@ -320,9 +226,6 @@ void findInImage(string image, string temp, Point &loc, double &correlation) {
 	// Center the find
 	matchLoc.x += templ.cols / 2;
 	matchLoc.y += templ.rows / 2;
-
-	/// Show me what you got
-	//rectangle( result, matchLoc, Point( matchLoc.x + templ.cols , matchLoc.y + templ.rows ), Scalar::all(0), 2, 8, 0 );
 
 	loc = matchLoc;
 	correlation = matchVal;
@@ -343,7 +246,7 @@ bool findFurthestToLeft(Mat img, Mat templ, Point &p) {
 	Mat result;
 	result.create( result_cols, result_rows, CV_32FC1 );
 
-	/// Do the Matching and Normalize
+	/// Do the matching
 	matchTemplate( img, templ, result, CV_TM_SQDIFF_NORMED );
 
 	p.x = 50000;

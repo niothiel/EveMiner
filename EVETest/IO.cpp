@@ -1,6 +1,6 @@
 #include "stdafx.h"
 
-#include <Windows.h>
+#include "IO.h"
 
 extern HWND eveWindow;			// Our global handle to the eve window
 
@@ -14,12 +14,12 @@ unsigned int rButton = 0;
 
 void _checkFG() {				// Checks whether eve is the foreground window, if not, make it so.
 	if(GetForegroundWindow() != eveWindow) {
-		//SetForegroundWindow(eveWindow);
+		setFG();
 		Sleep(400 + rand() % 250);
 	}
 }
 
-/*
+
 void _scrollWheelHelper(bool down) {		// We scroll down (towards the user, when true).
 	INPUT mouseScroll;
 	mouseScroll.type = INPUT_MOUSE;
@@ -42,7 +42,7 @@ void scrollMouseDown() {
 void scrollMouseUp() {
 	_scrollWheelHelper(false);
 }
-*/
+
 
 #ifdef WM_IO
 void _mouseEventHelper(bool left, bool down) {
@@ -101,7 +101,7 @@ void _mouseEventHelper(bool left, bool down) {
 #endif
 
 void ClickMouse() {
-	//SetForegroundWindow(eveWindow);
+	setFG();
 	Sleep(400);
 
 	_mouseEventHelper(true, true);		// Left mouse down
@@ -111,7 +111,7 @@ void ClickMouse() {
 }
 
 void RightClickMouse() {
-	//SetForegroundWindow(eveWindow);
+	setFG();
 	Sleep(400);
 
 	_mouseEventHelper(false, true);
@@ -121,10 +121,11 @@ void RightClickMouse() {
 }
 
 void MoveMouse(int x, int y, int rmouse) {
+	setFG();
 #ifdef WM_IO
 	SendMessage(eveWindow, WM_MOUSEMOVE, lButton | rButton, MAKELPARAM(x, y));
-//#else
-	//SetForegroundWindow(eveWindow);
+#else
+	
 	Sleep(200);
 
 	POINT p;
@@ -186,10 +187,16 @@ void keyUp(unsigned short key) {
 }
 
 void pressKey(unsigned short key) {
-	//SetForegroundWindow(eveWindow);
+	setFG();
 	Sleep(400 + rand() % 250);
 
 	keyDown(key);
 	Sleep(200);
 	keyUp(key);
+}
+
+void setFG() {
+#ifndef WM_IO
+	SetForegroundWindow(eveWindow);
+#endif
 }

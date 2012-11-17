@@ -49,6 +49,7 @@ void imageTest(char* img, char* temp);
 void getNumber();
 void setOverviewLocation();
 void fatalExit(string msg);
+void moveMouseAway();
 
 string formatTime(unsigned long time_millis);
 
@@ -72,13 +73,18 @@ int main() {
 		return 0;
 	}
 
+	SetForegroundWindow(eveWindow);
+	Sleep(500);
+
 	// Set the client window's width and height.
 	RECT rect;
 	GetClientRect(eveWindow, &rect);
 	width = rect.right;
 	height = rect.bottom;
 
-	openOreHold();
+	//captureScreen(eveWindow, "test.bmp");
+	//return 0;
+
 	// Figure out where we are, and hopefully where we need to go.
 	if(isDocked()) {
 		depositOre();
@@ -119,10 +125,10 @@ int main() {
 
 		if(!isDocked() && runOnce) {					// Reset the overview by scrolling up on it so the closest objects appear on the screen.
 			MoveMouse(width - 80, height / 3, 0);		// Move mouse to the overview
-			for(int x = 0; x < 10; x++) {				// Scroll up on the overview to make sure the closest distance things are up first.
-				scrollMouseUp();
-				Sleep(200);
-			}
+			//for(int x = 0; x < 10; x++) {				// Scroll up on the overview to make sure the closest distance things are up first.
+			//	scrollMouseUp();
+			//	Sleep(200);
+			//}
 
 			setOverviewLocation();						// Find and set overviewLoc to the location of the first entry in the overview.
 
@@ -241,7 +247,7 @@ bool selectAsteroid() {
 
 	openOverviewMine();						// Open the mining navigation tab.
 
-	MoveMouse(width - 10, height - 10, 0);	// Move away the mouse to make sure we don't mess with image recognition.
+	moveMouseAway();						// Move away the mouse to make sure we don't mess with image recognition.
 
 	if(!findAsteroidOnScreen(p)) {
 		cout << "Couldn't find an asteroid to select!" << endl;
@@ -249,7 +255,8 @@ bool selectAsteroid() {
 	}
 
 	MoveMouse(p.x, p.y, 1);					// Click on it.
-	pressKey(VK_LCONTROL);					// Target.
+	clickImageOnScreen("nav_lock.bmp", 0.99);
+	//pressKey(VK_LCONTROL);					// Target.
 	Sleep(5000);							// Wait for target lock.
 	// Check for lock symbol here!!!
 
@@ -286,7 +293,7 @@ void resetMiningLasers() {
 	fireMiningLasers();						// Since we're not actually mining anything, and at least one laser is erroneously on,
 											// turn them all off, without a target, this will cause the rest of them to blink.
 
-	MoveMouse(width - 10, height - 10, 2);	// Right click on the bottom corner of the screen to open the right click menu.
+	MoveMouse(width - 20, height - 20, 2);	// Right click on the bottom corner of the screen to open the right click menu.
 	MoveMouse(width / 2, height / 2, 1);	// Then click away to reset the mining lasers to off position.
 }
 
@@ -474,7 +481,7 @@ bool waitUntilDocked() {
 }
 
 void _openOverview(string name) {
-	MoveMouse(width - 10, height - 10, 0);					// Move the mouse out of the way to not get in the way of image recognition.
+	MoveMouse(width - 20, height - 20, 0);					// Move the mouse out of the way to not get in the way of image recognition.
 
 	clickImageOnScreen(name, 0.95);
 }
@@ -595,4 +602,8 @@ void fatalExit(string msg) {
 	cout << "Fatal: " << msg << endl;
 	cout << "Exiting in 30 seconds." << endl;
 	exit(1);
+}
+
+void moveMouseAway() {
+	MoveMouse(width - 20, height - 20, 0);
 }

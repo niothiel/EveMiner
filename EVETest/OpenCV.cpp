@@ -17,7 +17,39 @@ extern Point overviewLoc;	// Location of the first entry in the overview, set wh
 
 using namespace std;
 
-void captureScreen(HWND window, string imgName)
+void captureScreen1(HWND window, string imgName) {
+	RECT rc;
+    HWND hwnd = window;
+    if (hwnd == NULL)
+    {
+        cout << "it can't find any 'note' window" << endl;
+    }
+    GetClientRect(hwnd, &rc);
+
+	//SetForegroundWindow(window);
+    //create
+    HDC hdcScreen = GetDC(window);
+    HDC hdc = CreateCompatibleDC(hdcScreen);
+    HBITMAP hbmp = CreateCompatibleBitmap(hdcScreen, 
+        rc.right - rc.left, rc.bottom - rc.top);
+    SelectObject(hdc, hbmp);
+
+    //Print to memory hdc
+    PrintWindow(hwnd, hdc, PW_CLIENTONLY);
+
+    //copy to clipboard
+    OpenClipboard(NULL);
+    EmptyClipboard();
+    SetClipboardData(CF_BITMAP, hbmp);
+    CloseClipboard();
+
+    //release
+    DeleteDC(hdc);
+    DeleteObject(hbmp);
+    ReleaseDC(NULL, hdcScreen);
+}
+
+void captureScreen2(HWND window, string imgName)
 {
 	Timer t(1);
 
@@ -26,7 +58,60 @@ void captureScreen(HWND window, string imgName)
 	HBITMAP hBitmap;
 	ULONG bWidth, bHeight;
 
-	SetForegroundWindow(eveWindow);
+	//SetForegroundWindow(eveWindow);
+	Sleep(100);
+	WinDC = GetDC (window);
+	CopyDC = CreateCompatibleDC (WinDC);
+
+	RECT rect;
+	GetClientRect(window, &rect);
+
+	bWidth =  abs(rect.right - rect.left);
+	bHeight = abs(rect.bottom - rect.top);
+
+	hBitmap = CreateCompatibleBitmap(WinDC, bWidth, bHeight);
+	SelectObject(CopyDC, hBitmap);
+	PrintWindow(window, CopyDC, PW_CLIENTONLY);
+	
+	//BitBlt(CopyDC, 0, 0, bWidth, bHeight, WinDC, 0, 0, SRCCOPY);
+               
+	ReleaseDC(window, WinDC);
+	DeleteDC(CopyDC);
+
+	RGBQUAD *image;
+	try {
+		image = new RGBQUAD[bWidth*bHeight];
+	}
+	catch(std::bad_alloc)
+	{
+		return;
+	}
+
+	GetBitmapBits(hBitmap, bWidth*bHeight*4, image);
+	writeBmp(imgName, bWidth, bHeight, 32, (int*)image);
+
+	delete image;
+
+	DeleteObject(hBitmap);
+
+#ifdef OPENCV_TEST
+	cout << "Capture Screen took " << t.elapsed() << " ms" << endl;
+#endif
+}
+
+void captureScreen(HWND window, string imgName) {
+
+	//captureScreen1(window, imgName);
+	//return;
+
+	Timer t(1);
+
+	HDC WinDC;
+	HDC CopyDC;
+	HBITMAP hBitmap;
+	ULONG bWidth, bHeight;
+
+	//SetForegroundWindow(eveWindow);
 	Sleep(100);
 	WinDC = GetDC (window);
 	CopyDC = CreateCompatibleDC (WinDC);
@@ -205,6 +290,11 @@ void findInImage(string image, string temp, Point &loc, double &correlation) {
 	int result_rows = img.rows - templ.rows + 1;
 
 	result.create( result_cols, result_rows, CV_32FC1 );
+
+	if(img.type() != templ.type()) {
+		cout << "Error with types or depths in templating: \"" << image << "\", \"" << temp << "\"" << endl;
+		return;
+	}
 
 	/// Do the Matching and Normalize
 	matchTemplate( img, templ, result, match_method );

@@ -10,7 +10,7 @@ void keyDown(unsigned short key);
 void keyUp(unsigned short key);
 void pressKey(unsigned short key);
 
-void scrollMouseUp();
-void scrollMouseDown();
+//void scrollMouseUp();
+//void scrollMouseDown();
 
 #endif

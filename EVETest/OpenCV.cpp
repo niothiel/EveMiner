@@ -192,6 +192,16 @@ void findInImage(string image, string temp, Point &loc, double &correlation) {
 	img = imread(image, 1 );
 	templ = imread(temp, 1 );
 
+	if(img.data == NULL) {
+		cout << "Error, couldn't open image: " << image << ", file probably doesn't exist!" << endl;
+		return;
+	}
+
+	if(templ.data == NULL) {
+		cout << "Error, couldn't open templ: " << temp << ", file probably doesn't exist!" << endl;
+		return;
+	}
+
 	/// Create the result matrix
 	int result_cols = img.cols - templ.cols + 1;
 	int result_rows = img.rows - templ.rows + 1;

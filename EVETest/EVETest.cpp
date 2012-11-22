@@ -94,7 +94,7 @@ int main() {
 		}
 		else {											// I'm just going to assume your ass is in the minefield.
 			openOverviewMine();							// Open the mining tab and check for rocks.
-			if(isImageOnScreen("nav_veld.bmp", 0.95)) {
+			if(isImageOnScreen("nav_veld.bmp", 0.95)) { //|| isImageOnScreen("nav_scord.bmp", 0.95)) {
 				cout << "Found rocks, go mine!" << endl;
 				goto at_minefield;
 			}
@@ -170,10 +170,7 @@ bool isInWarp() {
 }
 
 bool isInvOpen() {
-	double corr;
-	findOnScreen("inv_cargoopen.bmp", corr);
-
-	return corr > 0.95;
+	return isImageOnScreen("inv_cargoopen.bmp", 0.95);
 }
 
 bool isDocked(Point &p) {
@@ -407,6 +404,24 @@ void openOverviewStations() {
 	return _openOverview("overview_stations.bmp");
 }
 
+void _depositOreHelper(Point itemHangarPos, string oreName) {
+	double corr;
+
+	while(1) {
+		Point orePos;
+		findOnScreen(oreName, orePos, corr);
+		if(corr > 0.95) {					// Looks like we've found the ore
+			cout << "Ore found, moving to item hangar" << endl;
+			MoveMouse(orePos.x, orePos.y, 0);		// Move the mouse over the icon for the veldspar.
+			_mouseEventHelper(true, true);					// Issue a mouse down event.
+			MoveMouse(itemHangarPos.x, itemHangarPos.y, 0);	// Drag over to the item hangar
+			_mouseEventHelper(true, false);					// Mouse up from it.
+		}
+		else
+			break;
+	}
+}
+
 void depositOre() {
 	//openInv();							// Open the inventory if it isn't open already.
 	openOreHold();						// Open the ore hold
@@ -416,21 +431,8 @@ void depositOre() {
 										// Grab the position of the item hangar thing.
 	findOnScreen("inv_itemhangar.bmp", itemHangarPos, corr);
 
-	while(1) {
-		Point veldsparPos;
-		findOnScreen("inv_veld.bmp", veldsparPos, corr);
-		cout << "Inventory veldspar correlation: " << corr << endl;
-
-		if(corr > 0.95) {					// Looks like we've found the ore
-			cout << "Ore found, moving to item hangar" << endl;
-			MoveMouse(veldsparPos.x, veldsparPos.y, 0);		// Move the mouse over the icon for the veldspar.
-			_mouseEventHelper(true, true);					// Issue a mouse down event.
-			MoveMouse(itemHangarPos.x, itemHangarPos.y, 0);	// Drag over to the item hangar
-			_mouseEventHelper(true, false);					// Mouse up from it.
-		}
-		else
-			break;
-	}
+	_depositOreHelper(itemHangarPos, "inv_veld.bmp");
+	_depositOreHelper(itemHangarPos, "inv_scord.bmp");
 }
 
 bool undock() {

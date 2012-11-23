@@ -1,8 +1,9 @@
 #include "stdafx.h"
 
+#include "IO.h"
 #include "OpenCV.h"
 #include "Timer.h"
-#include "IO.h"
+#include "Util.h"
 
 extern HWND eveWindow;		// Handle to the eve window.
 extern Point overviewLoc;	// Location of the first entry in the overview, set when undocked.
@@ -10,6 +11,7 @@ extern Point overviewLoc;	// Location of the first entry in the overview, set wh
 #define SCR_CAP_NAME "test.bmp"
 
 //#define OPENCV_TEST
+#define MATCH_METHOD CV_TM_SQDIFF_NORMED
 
 using namespace std;
 
@@ -30,8 +32,8 @@ void captureScreen(HWND window, string imgName) {
 	RECT rect;
 	GetClientRect(window, &rect);
 
-	bWidth =  abs(rect.right - rect.left);
-	bHeight = abs(rect.bottom - rect.top);
+	bWidth =  rect.right;
+	bHeight = rect.bottom;
 
 	hBitmap = CreateCompatibleBitmap(WinDC, bWidth, bHeight);
 	SelectObject(CopyDC, hBitmap);
@@ -40,14 +42,7 @@ void captureScreen(HWND window, string imgName) {
 	ReleaseDC(window, WinDC);
 	DeleteDC(CopyDC);
 
-	RGBQUAD *image;
-	try {
-		image = new RGBQUAD[bWidth*bHeight];
-	}
-	catch(std::bad_alloc)
-	{
-		return;
-	}
+	RGBQUAD *image = new RGBQUAD[bWidth*bHeight];
 
 	GetBitmapBits(hBitmap, bWidth*bHeight*4, image);
 	writeBmp(imgName, bWidth, bHeight, 32, (int*)image);
@@ -95,13 +90,66 @@ void writeBmp(string name,int W,int H,int Bpp,int* data)
 	fclose(image);
 }
 
+Mat safeImageRead(string fileName, int flags) {
+	Mat img = imread(fileName, flags);
+
+	if(img.data == NULL) {
+		ostringstream os;
+		os << "Error reading image, it most likely doesn't exist: " << fileName << endl;
+		fatalExit(os.str());
+	}
+
+	return img;
+}
+
+Mat _matchTemplate(Mat img, Mat templ) {
+	Mat result;
+
+	// Create the result matrix
+	int result_cols = img.cols - templ.cols + 1;
+	int result_rows = img.rows - templ.rows + 1;
+
+	// Whole bunch of error checking.
+	if(result_cols <= 0 || result_rows <= 0) {
+		fatalExit("Resultant matrix came back with zero or negative dimensions!");
+	}
+
+	if(img.data == NULL) {
+		ostringstream os;
+		os << "Error, image data is NULL: " << img << ", file probably doesn't exist!";
+		fatalExit(os.str());
+	}
+
+	if(templ.data == NULL) {
+		ostringstream os;
+		os << "Error, template data is NULL: " << templ << ", file probably doesn't exist!" << endl;
+		fatalExit(os.str());
+	}
+
+	if(img.type() != templ.type()) {
+		ostringstream os;
+		os << "Error with types or depths in templating: \"" << img << "\", \"" << templ << "\"" << endl;
+		fatalExit(os.str());
+	}
+
+	result.create(result_cols, result_rows, CV_32FC1);
+
+	// Do the matching
+	matchTemplate(img, templ, result, MATCH_METHOD);
+
+	// Normalize so the best value is 1, not 0 like usual.
+	//result = Scalar::all(1) - result;
+
+	return result;
+}
+
 void findOnScreen(string bmpName, double &correlation, bool refreshScr) {
 	Point p;
 
 	findOnScreen(bmpName, p, correlation, refreshScr);
 }
 
-void findOnScreen(string bmpName, Point &loc, double &correlation, bool refreshScreen/* Maybe rectangle stuff here? */) {
+void findOnScreen(string bmpName, Point &loc, double &correlation, bool refreshScreen) {
 	if(refreshScreen)
 		captureScreen(eveWindow, SCR_CAP_NAME);
 
@@ -116,33 +164,20 @@ bool findAsteroidOnScreen(Point &loc) {
 	Mat result;
 
 	/// Load image and template
-	img = imread(SCR_CAP_NAME, 1 );
-	templ = imread("nav_veld.bmp", 1 );
+	img = safeImageRead(SCR_CAP_NAME);
+	templ = safeImageRead("nav_veld.bmp");
 
-	/// Source image to display
-	Mat img_display;
-	img.copyTo( img_display );
-
-	/// Create the result matrix
-	int result_cols = img.cols - templ.cols + 1;
-	int result_rows = img.rows - templ.rows + 1;
-
-	result.create( result_cols, result_rows, CV_32FC1 );
-
-	/// Do the matching
-	matchTemplate( img, templ, result, 1 );
+	result = _matchTemplate(img, templ);
 
 	loc.x = -1;
 	loc.y = 50000;
 
-	for(int x = 0; x < result_cols; x++) {
-		for(int y = 0; y < result_rows; y++) {
+	for(int x = 0; x < result.cols; x++) {
+		for(int y = 0; y < result.rows; y++) {
 			double corr = (double)result.at<float>(y, x);
 			if(corr < 0.01 && loc.y > y) {
 				loc.x = x;
 				loc.y = y;
-
-				cout << "found asteroid with correlation: " << corr << " at " << loc.x << ", " << loc.y << endl;
 			}
 		}
 	}
@@ -154,7 +189,7 @@ bool findAsteroidOnScreen(Point &loc) {
 	loc.x += templ.cols / 2;
 	loc.y += templ.rows / 2;
 
-	cout << "Found highest in the screen location: " << loc.x << ", " << loc.y << endl;
+	cout << "Found highest asteroid in the screen location: " << loc.x << ", " << loc.y << endl;
 	return true;
 }
 
@@ -179,66 +214,44 @@ bool clickImageOnScreen(string bmpName, double minCorrelation) {
 	return false;
 }
 
-void findInImage(string image, string temp, Point &loc, double &correlation) {
+void findInImage(string image, string temp, Point &loc, double &correlation, Dir searchDir, bool centerResult) {
 	Timer t(1);
-
-	int match_method = CV_TM_SQDIFF_NORMED;
 
 	Mat img;
 	Mat templ;
 	Mat result;
 
 	/// Load image and template
-	img = imread(image, 1 );
-	templ = imread(temp, 1 );
+	img = safeImageRead(image);
+	templ = safeImageRead(temp);
 
-	if(img.data == NULL) {
-		cout << "Error, couldn't open image: " << image << ", file probably doesn't exist!" << endl;
-		return;
-	}
+	result = _matchTemplate(img, templ);
 
-	if(templ.data == NULL) {
-		cout << "Error, couldn't open templ: " << temp << ", file probably doesn't exist!" << endl;
-		return;
-	}
+	if(searchDir == NONE) {
+		/// Localizing the best match with minMaxLoc
+		double minVal; double maxVal; Point minLoc; Point maxLoc;
 
-	/// Create the result matrix
-	int result_cols = img.cols - templ.cols + 1;
-	int result_rows = img.rows - templ.rows + 1;
+		minMaxLoc( result, &minVal, &maxVal, &minLoc, &maxLoc, Mat() );
 
-	result.create( result_cols, result_rows, CV_32FC1 );
-
-	if(img.type() != templ.type()) {
-		cout << "Error with types or depths in templating: \"" << image << "\", \"" << temp << "\"" << endl;
-		return;
-	}
-
-	/// Do the Matching and Normalize
-	matchTemplate( img, templ, result, match_method );
-	//normalize( result, result, 0, 1, NORM_MINMAX, -1, Mat() );
-
-	/// Localizing the best match with minMaxLoc
-	double minVal; double maxVal; Point minLoc; Point maxLoc;
-	Point matchLoc; double matchVal;
-
-	minMaxLoc( result, &minVal, &maxVal, &minLoc, &maxLoc, Mat() );
-
-	/// For SQDIFF and SQDIFF_NORMED, the best matches are lower values. For all the other methods, the higher the better
-	if( match_method  == CV_TM_SQDIFF || match_method == CV_TM_SQDIFF_NORMED ) {
-		matchLoc = minLoc;
-		matchVal = 1 - minVal;
+		/// For SQDIFF and SQDIFF_NORMED, the best matches are lower values. For all the other methods, the higher the better
+		if( MATCH_METHOD  == CV_TM_SQDIFF || MATCH_METHOD == CV_TM_SQDIFF_NORMED ) {
+			loc = minLoc;
+			correlation = 1 - minVal;
+		}
+		else {
+			loc = maxLoc;
+			correlation = maxVal;
+		}
 	}
 	else {
-		matchLoc = maxLoc;
-		matchVal = maxVal;
+		// TODO: Directional search implementation
 	}
 
 	// Center the find
-	matchLoc.x += templ.cols / 2;
-	matchLoc.y += templ.rows / 2;
-
-	loc = matchLoc;
-	correlation = matchVal;
+	if(centerResult) {
+		loc.x += templ.cols / 2;
+		loc.y += templ.rows / 2;
+	}
 
 #ifdef OPENCV_TEST
 	cout << "Find Image took: " << t.elapsed() << " ms." << endl;
@@ -246,24 +259,14 @@ void findInImage(string image, string temp, Point &loc, double &correlation) {
 }
 
 bool findFurthestToLeft(Mat img, Mat templ, Point &p) {
-	/// Create the result matrix
-	int result_cols = img.cols - templ.cols + 1;
-	int result_rows = img.rows - templ.rows + 1;
-
-	if(result_rows < 1 || result_cols < 1)
-		return false;
-
 	Mat result;
-	result.create( result_cols, result_rows, CV_32FC1 );
-
-	/// Do the matching
-	matchTemplate( img, templ, result, CV_TM_SQDIFF_NORMED );
+	result = _matchTemplate(img, templ);
 
 	p.x = 50000;
 	p.y = -1;
 
-	for(int x = 0; x < result_cols; x++) {
-		for(int y = 0; y < result_rows; y++) {
+	for(int x = 0; x < result.cols; x++) {
+		for(int y = 0; y < result.rows; y++) {
 			double corr = (double)result.at<float>(y, x);
 			if(corr < 0.01 && p.x > x) {
 				p.x = x;
@@ -276,16 +279,15 @@ bool findFurthestToLeft(Mat img, Mat templ, Point &p) {
 }
 
 Mat getBWImage(string name) {
-	Mat tmp = imread(name, CV_LOAD_IMAGE_GRAYSCALE);
+	Mat tmp = safeImageRead(name, CV_LOAD_IMAGE_GRAYSCALE);
 	Mat ret;
 
-	adaptiveThreshold(tmp, ret, 255, ADAPTIVE_THRESH_MEAN_C, THRESH_BINARY, 7, 0);
+	adaptiveThreshold(tmp, ret, 255, ADAPTIVE_THRESH_MEAN_C, THRESH_BINARY, 3, 0);
 	return ret;
 }
 
 #define T_DIST_HEIGHT	19				// Height of each entry in the overview. Standard for 100% scaling.
 #define T_DIST_WIDTH	65				// Width of the distance column in the overview.
-#define T_DIST_ENTRIES	31				// Number of entries that fit in the overview. Doesn't really matter, as long as it's like >20.
 
 // Holy shit balls I really wish I didn't have to write this shit.
 double getDistance(int startX, int startY) {
@@ -293,9 +295,9 @@ double getDistance(int startX, int startY) {
 
 	Timer t(1);
 
-	Mat img = imread(SCR_CAP_NAME);
-	Mat nums = imread("nav_numbers.bmp");
-	Mat nums_s = imread("nav_numbers_s.bmp");
+	Mat img = safeImageRead(SCR_CAP_NAME);
+	Mat nums = safeImageRead("nav_numbers.bmp");
+	Mat nums_s = safeImageRead("nav_numbers_s.bmp");
 
 	int endX = startX + T_DIST_WIDTH;
 	int endY = startY + T_DIST_HEIGHT;
@@ -335,10 +337,10 @@ double getDistance(int startX, int startY) {
 	double numMeters = (double) atoi(os.str().c_str());	// Turn the concatenation of numbers into an actual number.
 
 	Point p;									// Next we look for "km" and "au" in the rest of the image.
-	Mat kmText = imread("nav_km.bmp");
-	Mat kmText_s = imread("nav_km_s.bmp");
-	Mat auText = imread("nav_au.bmp");
-	Mat auText_s = imread("nav_au_s.bmp");
+	Mat kmText = safeImageRead("nav_km.bmp");
+	Mat kmText_s = safeImageRead("nav_km_s.bmp");
+	Mat auText = safeImageRead("nav_au.bmp");
+	Mat auText_s = safeImageRead("nav_au_s.bmp");
 
 	if(findFurthestToLeft(img, kmText, p))		// If this is true, that means "km" was found, multiply by 1000
 		numMeters *= 1000;						// so now it will be in meters.
@@ -348,17 +350,4 @@ double getDistance(int startX, int startY) {
 	cout << "The number is: " << numMeters << endl;
 
 	return numMeters;
-}
-
-void getNumber() {
-	//int startX = T_DIST_START_X;
-	//int startY = T_DIST_START_Y;
-
-	int startX = overviewLoc.x;
-	int startY = overviewLoc.y;
-
-	for(int x = 0; x < 30; x++) {
-		getDistance(startX, startY + T_DIST_HEIGHT * x);
-	}
-	Sleep(50000);
 }

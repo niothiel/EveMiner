@@ -5,7 +5,17 @@
 
 using namespace cv;
 
-void findInImage(string image, string temp, Point &loc, double &correlation);
+enum Dir {
+	UP,
+	DOWN,
+	LEFT,
+	RIGHT,
+	NONE
+};
+
+Mat safeImageRead(string fileName, int flags = 1);
+
+void findInImage(string image, string temp, Point &loc, double &correlation, Dir searchDir = NONE, bool centerResult = true);
 
 void findOnScreen(string bmpName, double &correlation, bool refreshScr = true);
 void findOnScreen(string bmpName, Point &loc, double &correlation, bool refreshScreen = true /* Maybe rectangle stuff here? */);

@@ -55,7 +55,7 @@ Point overviewLoc;	// Location of the first entry in the overview, set when undo
 #define VELD_PRICE 17.15
 #define VELD_CAPACITY 231000
 
-bool runOnce = true;
+bool runOnce = true;// Flag for runOnce events that have to happen when undocked.
 
 int main() {
 	// Testing for image correlation
@@ -69,8 +69,13 @@ int main() {
 		return 0;
 	}
 
+	HWND appWindow = GetForegroundWindow();
+
 	SetForegroundWindow(eveWindow);
 	Sleep(500);
+
+	// Make the console window be the topmost thing, used for serious debugging.
+	//SetWindowPos(appWindow, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOREDRAW);
 
 	// Set the client window's width and height.
 	RECT rect;
@@ -173,17 +178,8 @@ bool isInvOpen() {
 	return isImageOnScreen("inv_cargoopen.bmp", 0.95);
 }
 
-bool isDocked(Point &p) {
-	double corr;
-
-	findOnScreen("undock.bmp", p, corr);
-	return corr > 0.85;
-}
-
 bool isDocked() {
-	Point p;
-
-	return isDocked(p);
+	return isImageOnScreen("undock.bmp", 0.85);
 }
 
 bool isInvFull() {
@@ -303,6 +299,7 @@ void resetMiningLasers() {
 											// turn them all off, without a target, this will cause the rest of them to blink.
 
 	MoveMouse(width - 20, height - 20, 2);	// Right click on the bottom corner of the screen to open the right click menu.
+	Sleep(200);
 	MoveMouse(width / 2, height / 2, 1);	// Then click away to reset the mining lasers to off position.
 }
 
@@ -383,7 +380,13 @@ bool openOreHold() {
 										// Click the ship select icon to reset
 	clickImageOnScreen("inv_shipselect.bmp", 0.95);
 										// Then click the orehold.
-	return clickImageOnScreen("inv_orehold.bmp", 0.95);
+	bool result = clickImageOnScreen("inv_orehold.bmp", 0.95);
+
+	if(!result) {
+		cout << "Failed to open orehold!" << endl;
+	}
+
+	return result; 
 }
 
 void _openOverview(string name) {
@@ -410,12 +413,13 @@ void _depositOreHelper(Point itemHangarPos, string oreName) {
 	while(1) {
 		Point orePos;
 		findOnScreen(oreName, orePos, corr);
-		if(corr > 0.95) {					// Looks like we've found the ore
+		if(corr > 0.95) {									// Looks like we've found the ore
 			cout << "Ore found, moving to item hangar" << endl;
-			MoveMouse(orePos.x, orePos.y, 0);		// Move the mouse over the icon for the veldspar.
+			MoveMouse(orePos.x, orePos.y, 0);				// Move the mouse over the icon for the veldspar.
 			_mouseEventHelper(true, true);					// Issue a mouse down event.
 			MoveMouse(itemHangarPos.x, itemHangarPos.y, 0);	// Drag over to the item hangar
 			_mouseEventHelper(true, false);					// Mouse up from it.
+			Sleep(300);										// Wait for a minute for the UI to update.
 		}
 		else
 			break;
@@ -423,7 +427,6 @@ void _depositOreHelper(Point itemHangarPos, string oreName) {
 }
 
 void depositOre() {
-	//openInv();							// Open the inventory if it isn't open already.
 	openOreHold();						// Open the ore hold
 
 	Point itemHangarPos;
@@ -431,8 +434,13 @@ void depositOre() {
 										// Grab the position of the item hangar thing.
 	findOnScreen("inv_itemhangar.bmp", itemHangarPos, corr);
 
+	if(corr < 0.90) {
+		cout << "Item hangar image was not found!" << endl;
+		return;
+	}
+
 	_depositOreHelper(itemHangarPos, "inv_veld.bmp");
-	_depositOreHelper(itemHangarPos, "inv_scord.bmp");
+	//_depositOreHelper(itemHangarPos, "inv_scord.bmp");
 }
 
 bool undock() {
@@ -440,9 +448,9 @@ bool undock() {
 
 	cout << "Attempting Undock." << endl;
 
-	if(isDocked(loc)) {
+	if(isDocked()) {
 		cout << "It looks like you're docked." << endl;
-		MoveMouse(loc.x, loc.y, 1);
+		clickImageOnScreen("undock.bmp", 0.85);
 		cout << "Clicked undock." << endl;
 
 		Timer t(20000);						// Give the operation a 20 second timeout.
@@ -474,9 +482,10 @@ bool waitUntilDocked() {
 			cout << "Timer ran out, something's wrong." << endl;
 			return false;
 		}
+		Sleep(2000);		// Calm down speedy gonzales, we gotta chilllll.
 	}
 
-	Sleep(400);
+	Sleep(500);
 	cout << "Docked!" << endl;
 	return true;
 }
@@ -520,7 +529,6 @@ bool jumpToSystem(string systemName) {
 		pressKey((unsigned short)'D');					// Send the jump command
 		waitForWarp();									// Need to do something about this, assuming we are far enough to warp to jumpgate
 		waitForSystem(systemName);						// Wait until the call tells us we are in the system.
-		// TODO: Error Checking.
 	}
 	else {
 		cout << "Unsuccessful in clicking on proper system for warp." << endl;
@@ -531,7 +539,7 @@ bool jumpToSystem(string systemName) {
 
 BOOL CALLBACK FindEveWindowProc(HWND hwnd, LPARAM lParam) {
 	char className[80];
-	char title[40];
+	char title[80];
 	GetClassNameA(hwnd, className, sizeof(className));
 	GetWindowTextA(hwnd, title, sizeof(title));
 
@@ -546,7 +554,7 @@ BOOL CALLBACK FindEveWindowProc(HWND hwnd, LPARAM lParam) {
 
 void setOverviewLocation() {
 	openOverviewMine();					// Open the mining portion of the overview.
-	MoveMouse(width / 2, height / 2, 1);// Click on the center of the screen to deselect anything you hopefully have in the overview.
+	clickOnShip();						// Click on the ship to deselect anything you hopefully have in the overview.
 
 	Point p;
 	double corr;
@@ -562,6 +570,10 @@ void setOverviewLocation() {
 
 	overviewLoc = p;
 	cout << "Found overview start at: " << p.x << ", " << p.y << endl;
+}
+
+void clickOnShip() {
+	MoveMouse(width / 2, height / 2, 1);
 }
 
 void moveMouseAway() {

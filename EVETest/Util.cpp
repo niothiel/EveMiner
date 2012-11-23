@@ -34,6 +34,7 @@ string formatTime(unsigned long time_millis) {
 void fatalExit(string msg) {
 	cout << "Fatal: " << msg << endl;
 	cout << "Exiting in 30 seconds." << endl;
+	Sleep(30000);
 	exit(1);
 }
 

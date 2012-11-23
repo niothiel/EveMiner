@@ -13,7 +13,7 @@ extern Point overviewLoc;	// Location of the first entry in the overview, set wh
 //#define OPENCV_TEST
 #define MATCH_METHOD CV_TM_SQDIFF_NORMED
 
-using namespace std;
+bool isMinimized(HWND window);
 
 void captureScreen(HWND window, string imgName) {
 	Timer t(1);
@@ -23,9 +23,7 @@ void captureScreen(HWND window, string imgName) {
 	HBITMAP hBitmap;
 	ULONG bWidth, bHeight;
 
-	//SetForegroundWindow(eveWindow);								// TODO: Figure out what to do here.
-	//setFG();
-	Sleep(100);
+	ensureFocus();
 	WinDC = GetDC (window);
 	CopyDC = CreateCompatibleDC (WinDC);
 
@@ -207,7 +205,7 @@ bool clickImageOnScreen(string bmpName, double minCorrelation) {
 	findOnScreen(bmpName, p, corr);
 
 	if(corr > minCorrelation) {
-		MoveMouse(p.x, p.y, 1);
+		moveMouse(p.x, p.y, 1);
 		return true;
 	}
 

@@ -1,7 +1,7 @@
 #include "stdafx.h"
 #include "OpenCV.h"
 
-using namespace std;
+extern HWND eveWindow;
 
 void imageTest(char* image, char* temp) {
 	Point p;
@@ -40,4 +40,23 @@ void fatalExit(string msg) {
 
 void sleep(unsigned int ms, unsigned int variation) {
 	Sleep(ms + rand() % variation);
+}
+
+bool isMinimized(HWND window) {
+	return IsIconic(window);
+}
+
+void ensureFocus() {
+	if(isMinimized(eveWindow)) {				// If the window is minimized, restore it
+		ShowWindow(eveWindow, SW_RESTORE);
+	}
+
+	Sleep(300);
+
+#ifdef DIRECT_IO								// And if we need active focus for IO, set it as the foreground window.
+	if(GetForegroundWindow() != eveWindow) {	// This comparison might be redundant, not sure.
+		SetForegroundWindow(eveWindow);
+		Sleep(300);
+	}
+#endif
 }

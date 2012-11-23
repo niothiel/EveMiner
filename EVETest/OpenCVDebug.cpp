@@ -6,7 +6,6 @@
 #include <stdio.h>
 #include <Windows.h>
 
-using namespace std;
 using namespace cv;
 
 /// Global Variables

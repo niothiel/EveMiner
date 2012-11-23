@@ -8,8 +8,6 @@
 #include "Timer.h"
 #include "Util.h"
 
-using namespace std;
-
 HWND eveWindow;			// Our global handle to the eve window
 int width;				// Client window resolution
 int height;
@@ -73,13 +71,13 @@ int main() {
 		return 0;
 	}
 
-	HWND appWindow = GetForegroundWindow();
+	while(1) {
+		ensureFocus();
+		Sleep(5000);
+	}
 
 	SetForegroundWindow(eveWindow);
 	Sleep(500);
-
-	// Make the console window be the topmost thing, used for serious debugging.
-	//SetWindowPos(appWindow, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOREDRAW);
 
 	// Set the client window's width and height.
 	RECT rect;
@@ -263,7 +261,7 @@ bool selectAsteroid() {
 		return false;
 	}
 
-	MoveMouse(p.x, p.y, 1);					// Click on it.
+	moveMouse(p.x, p.y, 1);					// Click on it.
 	//clickImageOnScreen("nav_lock.bmp", 0.99);
 	pressKey(VK_LCONTROL);					// Target.
 	Sleep(5000);							// Wait for target lock.
@@ -302,7 +300,7 @@ void resetMiningLasers() {
 	fireMiningLasers();						// Since we're not actually mining anything, and at least one laser is erroneously on,
 											// turn them all off, without a target, this will cause the rest of them to blink.
 
-	MoveMouse(width - 20, height - 20, 2);	// Right click on the bottom corner of the screen to open the right click menu.
+	moveMouse(width - 20, height - 20, 2);	// Right click on the bottom corner of the screen to open the right click menu.
 	Sleep(200);
 	clickOnShip();	// Then click away to reset the mining lasers to off position.
 }
@@ -336,9 +334,9 @@ bool waitForMinerDone() {
 #define RMENU_NUMITEMS 11				// Number of items in right click menu
 
 bool selectRightClickMenu(char* firstAction) {
-	MoveMouse(width / 2, height / 2, 1);	// Click in the center to ensure no menus are open
-	MoveMouse(width - RMENU_WIDTH / 5, height - 30, 2);	// Right click on the bottom right corner of the screen to bring up the menu.
-	MoveMouse(width - RMENU_WIDTH / 5, height - 5, 0);	// Move to the bottom of the menu to not obcure any options.
+	clickOnShip();										// Click in the center to ensure no menus are open
+	moveMouse(width - RMENU_WIDTH / 5, height - 30, 2);	// Right click on the bottom right corner of the screen to bring up the menu.
+	moveMouse(width - RMENU_WIDTH / 5, height - 5, 0);	// Move to the bottom of the menu to not obcure any options.
 
 
 	if(!clickImageOnScreen(firstAction, 0.95)) {
@@ -358,7 +356,7 @@ bool selectRightClickMenu(char* firstAction, char* secondAction) {
 	int x = ptMouse.x - RMENU_WIDTH / 2 - 20;
 	int y = ptMouse.y;						// Move the mouse to the left, just past the menu.
 
-	MoveMouse(x, y, 0);						// Clickety click!
+	moveMouse(x, y, 0);						// Clickety click!
 
 	if(!clickImageOnScreen(secondAction, 0.95)) {
 		cout << "Failed to find/select option in second menu" << endl;
@@ -394,7 +392,7 @@ bool openOreHold() {
 }
 
 void _openOverview(string name) {
-	MoveMouse(width - 20, height - 20, 0);					// Move the mouse out of the way to not get in the way of image recognition.
+	moveMouseAway();					// Move the mouse out of the way to not get in the way of image recognition.
 
 	clickImageOnScreen(name, 0.95);
 }
@@ -419,10 +417,7 @@ void _depositOreHelper(Point itemHangarPos, string oreName) {
 		findOnScreen(oreName, orePos, corr);
 		if(corr > 0.95) {									// Looks like we've found the ore
 			cout << "Ore found, moving to item hangar" << endl;
-			MoveMouse(orePos.x, orePos.y, 0);				// Move the mouse over the icon for the veldspar.
-			_mouseEventHelper(true, true);					// Issue a mouse down event.
-			MoveMouse(itemHangarPos.x, itemHangarPos.y, 0);	// Drag over to the item hangar
-			_mouseEventHelper(true, false);					// Mouse up from it.
+			dragMouse(orePos.x, orePos.y, itemHangarPos.x, itemHangarPos.y);
 			Sleep(300);										// Wait for a minute for the UI to update.
 		}
 		else
@@ -577,9 +572,9 @@ void setOverviewLocation() {
 }
 
 void clickOnShip() {
-	MoveMouse(width / 2, height / 2, 1);
+	moveMouse(width / 2, height / 2, 1);
 }
 
 void moveMouseAway() {
-	MoveMouse(width - 20, height - 20, 0);
+	moveMouse(width - 20, height - 20, 0);
 }

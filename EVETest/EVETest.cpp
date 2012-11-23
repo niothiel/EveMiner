@@ -48,6 +48,7 @@ void OpenCVTest();
 void getNumber();
 void setOverviewLocation();
 void moveMouseAway();
+void clickOnShip();
 
 Timer t(1);			// The run timer.
 Point overviewLoc;	// Location of the first entry in the overview, set when undocked.
@@ -61,6 +62,9 @@ int main() {
 	// Testing for image correlation
 	//OpenCVTest();
 	//return 0;
+
+	// TODO: More elegant solution for making sure EVE isn't minimized
+	// TODO: Using IsIconic and ShowWindow
 
 	EnumWindows(FindEveWindowProc, NULL);
 	if(eveWindow == NULL) {
@@ -300,7 +304,7 @@ void resetMiningLasers() {
 
 	MoveMouse(width - 20, height - 20, 2);	// Right click on the bottom corner of the screen to open the right click menu.
 	Sleep(200);
-	MoveMouse(width / 2, height / 2, 1);	// Then click away to reset the mining lasers to off position.
+	clickOnShip();	// Then click away to reset the mining lasers to off position.
 }
 
 bool waitForMinerDone() {

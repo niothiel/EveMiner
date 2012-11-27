@@ -6,7 +6,6 @@
 #include "Util.h"
 
 extern HWND eveWindow;		// Handle to the eve window.
-extern Point overviewLoc;	// Location of the first entry in the overview, set when undocked.
 
 #define SCR_CAP_NAME "test.bmp"
 
@@ -14,6 +13,7 @@ extern Point overviewLoc;	// Location of the first entry in the overview, set wh
 #define MATCH_METHOD CV_TM_SQDIFF_NORMED
 
 bool isMinimized(HWND window);
+Point getOverviewLocation();
 
 void captureScreen(HWND window, string imgName) {
 	Timer t(1);
@@ -288,10 +288,20 @@ Mat getBWImage(string name) {
 #define T_DIST_WIDTH	65				// Width of the distance column in the overview.
 
 // Holy shit balls I really wish I didn't have to write this shit.
-double getDistance(int startX, int startY) {
-	captureScreen(eveWindow, SCR_CAP_NAME);				// Grab the screen.
-
+double getDistance(int startX, int startY, bool refreshScreen) {
 	Timer t(1);
+
+	Point overviewLoc = getOverviewLocation();
+
+	if(refreshScreen)
+		captureScreen(eveWindow, SCR_CAP_NAME);				// Grab the screen.
+
+	startX = overviewLoc.x;									// Set the location of the actual overview entry.
+
+	int idxEntry = startY - overviewLoc.y;					// Figure out the number of entries down we are.
+	idxEntry /= T_DIST_HEIGHT;
+
+	startY = overviewLoc.y + idxEntry * T_DIST_HEIGHT;		// then based off of that, reset the positions.
 
 	Mat img = safeImageRead(SCR_CAP_NAME);
 	Mat nums = safeImageRead("nav_numbers.bmp");

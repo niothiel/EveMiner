@@ -78,6 +78,8 @@ void _keyHelper(unsigned short key, bool down) {
 }
 
 #else
+// TODO: Seems like windows messaging IO doesn't work on key up events when the window doesn't have focus.
+// Need to find a non-intrusive solution to this.
 
 int windowX = 0;				// Global values for keeping track of the mouse location.
 int windowY = 0;
@@ -85,7 +87,7 @@ int windowY = 0;
 unsigned int lButton = 0;		// Flag denoting whether the left and right buttons are on.
 unsigned int rButton = 0;
 
-void mouseEvent(bool left, bool down) {
+void _mouseButton(bool left, bool down) {
 	DWORD flag;
 
 	if(left) {
@@ -109,30 +111,54 @@ void mouseEvent(bool left, bool down) {
 		}
 	}
 
+	//_moveHelper(windowX, windowY);
 	SendMessage(eveWindow, flag, lButton | rButton, MAKELPARAM(windowX, windowY));
 }
 
-void _moveHelper(int x, int y) {
+void _mouseMove(int x, int y) {
+	// For Debug
+	POINT p;
+	p.x = x;
+	p.y = y;
+
+	ClientToScreen(eveWindow, &p);
+
+	SetCursorPos(p.x, p.y);
+
+	windowX = x;							// Need to make sure that we update the global values of where the mouse is.
+	windowY = y;							// Or else the game will detect some weird stuff happening and that would be bad.
+
 	SendMessage(eveWindow, WM_MOUSEMOVE, lButton | rButton, MAKELPARAM(x, y));
 }
 
 void _scrollWheelHelper(bool down) {		// We scroll down (towards the user, when true).
-
+	// TODO: Implement mouse scrolling, low priority.
+	fatalExit("Scrolling is not implemented through Windows Messaging yet!");
 }
 
 void _keyHelper(unsigned short key, bool down) {
 	DWORD flag;
 	unsigned int lParam = 0;
 
+	// Set the scan code section as well as the extended key flag.
+	
+
 	if(down) {
 		flag = WM_KEYDOWN;
+		//lParam = 0;
 	}
 	else {
 		flag = WM_KEYUP;
+		lParam = lParam | 0x1;						// Set repeat count (Always one for WM_KEYUP).
+		lParam = lParam | (MapVirtualKey(key, MAPVK_VK_TO_VSC) << 16);// Scan code
+		lParam = lParam | (0x1 << 24);					// Extended key flag
+		lParam = lParam | (0x1 << 30);				// Set the previous key state.
 		lParam = lParam | (0x1 << 31);				// Set the transition state for the keyup event.
+
+		//lParam = 65539;
 	}
 
-	SendMessage(eveWindow, WM_KEYDOWN, key, 0);
+	PostMessage(eveWindow, flag, key, lParam);
 }
 
 #endif

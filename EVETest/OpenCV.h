@@ -27,3 +27,5 @@ bool findAsteroidOnScreen(Point &loc);
 
 void captureScreen(HWND window, string imgName);
 void writeBmp(string name,int W,int H,int Bpp,int* data);
+
+double getDistance(int startX, int startY, bool refreshScr = false);

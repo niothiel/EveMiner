@@ -8,10 +8,6 @@
 #include "Timer.h"
 #include "Util.h"
 
-HWND eveWindow;			// Our global handle to the eve window
-int width;				// Client window resolution
-int height;
-
 BOOL CALLBACK FindEveWindowProc(HWND hwnd, LPARAM lParam);
 bool selectRightClickMenu(char* firstAction);
 bool selectRightClickMenu(char* firstAction, char* secondAction);
@@ -50,31 +46,52 @@ void clickOnShip();
 
 Timer t(1);			// The run timer.
 Point overviewLoc;	// Location of the first entry in the overview, set when undocked.
+bool overviewLocSet = false;// Flag specifying whether the overview location has been set or not.
+
+HWND eveWindow;			// Our global handle to the eve window
+int width;				// Client window resolution
+int height;
 
 #define VELD_PRICE 17.15
 #define VELD_CAPACITY 231000
 
 bool runOnce = true;// Flag for runOnce events that have to happen when undocked.
 
-int main() {
-	// Testing for image correlation
-	//OpenCVTest();
-	//return 0;
+/*
+void notepadTest() {
+	HWND windowHandle = FindWindow(L"NOTEPAD", NULL);
+	HWND editHandle = FindWindowEx(windowHandle, 0, L"EDIT", NULL);
 
+	Sleep(5000);
+	while(1) {
+		PostMessage(eveWindow, WM_KEYDOWN, 'D', 0);
+
+		unsigned int lParam = 0;
+		lParam = lParam | 0x1;						// Set repeat count (Always one for WM_KEYUP).
+		lParam = lParam | (0x1 << 30);				// Set the previous key state.
+		lParam = lParam | (0x1 << 31);				// Set the transition state for the keyup event.
+		lParam = lParam | (MapVirtualKey('D', MAPVK_VK_TO_VSC) << 16);// Scan code
+		lParam = lParam | (0x1 << 24);					// Extended key flag
+
+		SendMessage(eveWindow, WM_KEYUP, 'D', lParam);
+		cout << "Done!" << endl;
+		Sleep(1000);
+	}
+}
+*/
+
+int main() {
 	// TODO: More elegant solution for making sure EVE isn't minimized
 	// TODO: Using IsIconic and ShowWindow
 
 	EnumWindows(FindEveWindowProc, NULL);
 	if(eveWindow == NULL) {
 		cout << "Could not find EVE window, closing. Make sure EVE is open before running!" << endl;
-		Sleep(1000);
+		Sleep(10000);
 		return 0;
 	}
 
-	while(1) {
-		ensureFocus();
-		Sleep(5000);
-	}
+	//notepadTest();
 
 	SetForegroundWindow(eveWindow);
 	Sleep(500);
@@ -132,7 +149,8 @@ int main() {
 			//}
 
 			setOverviewLocation();						// Find and set overviewLoc to the location of the first entry in the overview.
-
+														// TODO: This is going to cause a problem, need to have a better way to initialize.
+														// Or to stop using the GOTO's, because they will fail for miners.
 			runOnce = false;
 		}
 
@@ -261,6 +279,14 @@ bool selectAsteroid() {
 		return false;
 	}
 
+	double asteroidDistance = getDistance(p.x, p.y);
+	cout << "Our asteroid distance is: " << asteroidDistance << " m" << endl;
+											// Find how far away the asteroid is.
+	if(asteroidDistance > 20 * 1000) {		// If it's over 20km then we say screw it.
+		cout << "The selected asteroid is further than 20km away." << endl;
+		return false;
+	}
+
 	moveMouse(p.x, p.y, 1);					// Click on it.
 	//clickImageOnScreen("nav_lock.bmp", 0.99);
 	pressKey(VK_LCONTROL);					// Target.
@@ -371,6 +397,8 @@ bool openInv() {
 		pressKey('C');					// Press C. The shortcut "ALT-C" should open up the inventory.
 		keyUp(VK_MENU);					// Release alt.
 	}
+	//else
+	//	cout << "Looks like the inventory is already open!" << endl;
 
 	Sleep(300);							// Give it a little bit of time to actually open the inventory.
 
@@ -378,7 +406,8 @@ bool openInv() {
 }
 
 bool openOreHold() {
-	openInv();
+	if(!openInv())						// Need to open the inventory first.
+		return false;
 										// Click the ship select icon to reset
 	clickImageOnScreen("inv_shipselect.bmp", 0.95);
 										// Then click the orehold.
@@ -551,6 +580,22 @@ BOOL CALLBACK FindEveWindowProc(HWND hwnd, LPARAM lParam) {
 	return TRUE;
 }
 
+// Use caching and lazy evaluation for things like this.
+Point getOverviewLocation() {
+	if(overviewLocSet) {
+		return overviewLoc;
+	}
+
+	if(isDocked()) {
+		fatalExit("Error, tried to access overview location, but was reported as being docked!");
+	}
+
+	// TODO: Probably need more checks here..
+
+	setOverviewLocation();
+	return overviewLoc;
+}
+
 void setOverviewLocation() {
 	openOverviewMine();					// Open the mining portion of the overview.
 	clickOnShip();						// Click on the ship to deselect anything you hopefully have in the overview.
@@ -568,6 +613,7 @@ void setOverviewLocation() {
 	p.y += templ.rows / 2;				// since findOnScreen() gives the location of the center of the template.
 
 	overviewLoc = p;
+	overviewLocSet = true;				// Update the flag so it's just cached.
 	cout << "Found overview start at: " << p.x << ", " << p.y << endl;
 }
 

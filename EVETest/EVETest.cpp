@@ -9,8 +9,8 @@
 #include "Util.h"
 
 BOOL CALLBACK FindEveWindowProc(HWND hwnd, LPARAM lParam);
-bool selectRightClickMenu(char* firstAction);
-bool selectRightClickMenu(char* firstAction, char* secondAction);
+bool selectRightClickMenu(string firstAction);
+bool selectRightClickMenu(string firstAction, string secondAction);
 
 bool undock();
 void depositOre();
@@ -51,6 +51,15 @@ bool overviewLocSet = false;// Flag specifying whether the overview location has
 HWND eveWindow;			// Our global handle to the eve window
 int width;				// Client window resolution
 int height;
+
+#define NUM_MINING_SITES 3	// Set to 3 because the 4th one requires double warp
+string miningSites[] = {
+	"rmenu_mining1.bmp",
+	"rmenu_mining2.bmp",
+	"rmenu_mining3.bmp",
+	"rmenu_mining4.bmp"
+};
+int curSiteIdx = 0;
 
 #define VELD_PRICE 17.15
 #define VELD_CAPACITY 231000
@@ -157,12 +166,18 @@ int main() {
 		cout << "Heading to Destination" << endl;
 		jumpToSystem("frarn");
 
-		selectRightClickMenu("rmenu_mining.bmp", "rmenu_warpto.bmp");// Warp to mining waypoint.
+		selectRightClickMenu(miningSites[curSiteIdx], "rmenu_warpto.bmp");// Warp to mining waypoint.
 		waitForWarp();										// Warp through.
 
 at_minefield:
 		do {
-			selectAsteroid();								// Target and select an asteroid.
+			if(!selectAsteroid()) {							// Target and select an asteroid.
+				curSiteIdx++;								// Update which mining site we go to.
+				curSiteIdx %= NUM_MINING_SITES;
+				cout << "Failed to select an asteroid for some reason, next mine site will be: " << miningSites[curSiteIdx] << endl;
+				break;										// And break.
+			}
+
 			approachAndFireMiningLasers();					// Start firing teh lazerzzz.
 		} while(!waitForMinerDone());						// Wait till we fill up the hangar or for the rock to disappear.
 
@@ -214,6 +229,7 @@ bool isInvFull() {
 // Returns whether or not the ship is currently located in the particular system.
 bool isInSystem(string systemName) {
 	cout << "Checking if you are in: " << systemName << endl;
+	Sleep(1000);											// VM is really slow, maybe this will help?
 
 	openOverviewStations();
 
@@ -359,7 +375,7 @@ bool waitForMinerDone() {
 #define RMENU_HEIGHT 15					// Height of each item
 #define RMENU_NUMITEMS 11				// Number of items in right click menu
 
-bool selectRightClickMenu(char* firstAction) {
+bool selectRightClickMenu(string firstAction) {
 	clickOnShip();										// Click in the center to ensure no menus are open
 	moveMouse(width - RMENU_WIDTH / 5, height - 30, 2);	// Right click on the bottom right corner of the screen to bring up the menu.
 	moveMouse(width - RMENU_WIDTH / 5, height - 5, 0);	// Move to the bottom of the menu to not obcure any options.
@@ -372,7 +388,7 @@ bool selectRightClickMenu(char* firstAction) {
 	return true;
 }
 
-bool selectRightClickMenu(char* firstAction, char* secondAction) {
+bool selectRightClickMenu(string firstAction, string secondAction) {
 	selectRightClickMenu(firstAction);		// Let's open the first menu
 
 	POINT ptMouse;							// Get the mouse position
@@ -490,6 +506,7 @@ bool undock() {
 				return false;
 			}
 		}
+		Sleep(3000);						// Let's give it three seconds to load it's stuff before continuing.
 
 		cout << "Looks like you're out! Have fun!" << endl;
 		return true;
@@ -513,7 +530,7 @@ bool waitUntilDocked() {
 		Sleep(2000);		// Calm down speedy gonzales, we gotta chilllll.
 	}
 
-	Sleep(500);
+	Sleep(1000);
 	cout << "Docked!" << endl;
 	return true;
 }
@@ -546,7 +563,7 @@ bool jumpToSystem(string systemName) {
 	if(isImageOnScreen(navImg, 0.98))					// Check if the system we want to go to exists.
 		result = clickImageOnScreen(navImg, 0.98);
 	else {												// Also check if it's highlighted.
-		os.clear();
+		os.str().clear();								// Reset the string stream.
 		os << "nav_" << systemName << "_s.bmp";
 		navImg = os.str();
 		if(isImageOnScreen(navImg, 0.98))

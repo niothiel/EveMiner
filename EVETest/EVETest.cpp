@@ -1,6 +1,3 @@
-// EVETest.cpp : Defines the entry point for the console application.
-//
-
 #include "stdafx.h"
 
 #include "IO.h"
@@ -90,9 +87,6 @@ void notepadTest() {
 */
 
 int main() {
-	// TODO: More elegant solution for making sure EVE isn't minimized
-	// TODO: Using IsIconic and ShowWindow
-
 	EnumWindows(FindEveWindowProc, NULL);
 	if(eveWindow == NULL) {
 		cout << "Could not find EVE window, closing. Make sure EVE is open before running!" << endl;
@@ -235,7 +229,7 @@ bool isInSystem(string systemName) {
 
 	ostringstream os;
 	os << "nav_" << systemName << ".bmp";					// Build the search string for the overview.
-	string imgStr = os.str();
+	string imgStr = "nav_" + systemName + ".bmp";
 
 	return isImageOnScreen(imgStr, 0.99);					// If the system name is shown in the stations overview, we are in this system.
 }
@@ -304,7 +298,6 @@ bool selectAsteroid() {
 	}
 
 	moveMouse(p.x, p.y, 1);					// Click on it.
-	//clickImageOnScreen("nav_lock.bmp", 0.99);
 	pressKey(VK_LCONTROL);					// Target.
 	Sleep(5000);							// Wait for target lock.
 	// Check for lock symbol here!!!

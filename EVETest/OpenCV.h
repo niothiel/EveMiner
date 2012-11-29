@@ -13,7 +13,9 @@ enum Dir {
 	NONE
 };
 
-Mat safeImageRead(string fileName, int flags = 1);
+void getScreenshot();
+
+Mat safeImageRead(string fileName, int flags = 1, bool prependImgDir = true);
 
 void findInImage(string image, string temp, Point &loc, double &correlation, Dir searchDir = NONE, bool centerResult = true);
 

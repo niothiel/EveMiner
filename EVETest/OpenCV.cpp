@@ -7,13 +7,19 @@
 
 extern HWND eveWindow;		// Handle to the eve window.
 
-#define SCR_CAP_NAME "test.bmp"
+#define IMG_DIR "img/"
+#define SCR_CAP_NAME "scrCap.bmp"
+#define SCR_CAP_PATH "img/scrCap.bmp"
 
 //#define OPENCV_TEST
 #define MATCH_METHOD CV_TM_SQDIFF_NORMED
 
 bool isMinimized(HWND window);
 Point getOverviewLocation();
+
+void getScreenshot() {
+	captureScreen(eveWindow, SCR_CAP_PATH);
+}
 
 void captureScreen(HWND window, string imgName) {
 	Timer t(1);
@@ -88,13 +94,14 @@ void writeBmp(string name,int W,int H,int Bpp,int* data)
 	fclose(image);
 }
 
-Mat safeImageRead(string fileName, int flags) {
+Mat safeImageRead(string fileName, int flags, bool prependImgDir) {
+	if(prependImgDir)
+		fileName = IMG_DIR + fileName;								// Prepend the image directory for images.
 	Mat img = imread(fileName, flags);
 
 	if(img.data == NULL) {
-		ostringstream os;
-		os << "Error reading image, it most likely doesn't exist: " << fileName << endl;
-		fatalExit(os.str());
+		string str = "Error reading image, it most likely doesn't exist: " + fileName;
+		fatalExit(str);
 	}
 
 	return img;
@@ -110,18 +117,6 @@ Mat _matchTemplate(Mat img, Mat templ) {
 	// Whole bunch of error checking.
 	if(result_cols <= 0 || result_rows <= 0) {
 		fatalExit("Resultant matrix came back with zero or negative dimensions!");
-	}
-
-	if(img.data == NULL) {
-		ostringstream os;
-		os << "Error, image data is NULL: " << img << ", file probably doesn't exist!";
-		fatalExit(os.str());
-	}
-
-	if(templ.data == NULL) {
-		ostringstream os;
-		os << "Error, template data is NULL: " << templ << ", file probably doesn't exist!" << endl;
-		fatalExit(os.str());
 	}
 
 	if(img.type() != templ.type()) {
@@ -149,13 +144,13 @@ void findOnScreen(string bmpName, double &correlation, bool refreshScr) {
 
 void findOnScreen(string bmpName, Point &loc, double &correlation, bool refreshScreen) {
 	if(refreshScreen)
-		captureScreen(eveWindow, SCR_CAP_NAME);
+		getScreenshot();
 
 	findInImage(SCR_CAP_NAME, bmpName, loc, correlation);
 }
 
 bool findAsteroidOnScreen(Point &loc) {
-	captureScreen(eveWindow, SCR_CAP_NAME);
+	getScreenshot();
 
 	Mat img;
 	Mat templ;
@@ -294,7 +289,7 @@ double getDistance(int startX, int startY, bool refreshScreen) {
 	Point overviewLoc = getOverviewLocation();
 
 	if(refreshScreen)
-		captureScreen(eveWindow, SCR_CAP_NAME);				// Grab the screen.
+		getScreenshot();									// Grab the screen.
 
 	startX = overviewLoc.x;									// Set the location of the actual overview entry.
 

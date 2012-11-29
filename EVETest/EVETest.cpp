@@ -35,7 +35,6 @@ bool waitForMinerDone();
 bool waitForWarp();
 bool waitUntilDocked();
 
-void OpenCVTest();
 void getNumber();
 void setOverviewLocation();
 void moveMouseAway();
@@ -63,38 +62,12 @@ int curSiteIdx = 0;
 
 bool runOnce = true;// Flag for runOnce events that have to happen when undocked.
 
-/*
-void notepadTest() {
-	HWND windowHandle = FindWindow(L"NOTEPAD", NULL);
-	HWND editHandle = FindWindowEx(windowHandle, 0, L"EDIT", NULL);
-
-	Sleep(5000);
-	while(1) {
-		PostMessage(eveWindow, WM_KEYDOWN, 'D', 0);
-
-		unsigned int lParam = 0;
-		lParam = lParam | 0x1;						// Set repeat count (Always one for WM_KEYUP).
-		lParam = lParam | (0x1 << 30);				// Set the previous key state.
-		lParam = lParam | (0x1 << 31);				// Set the transition state for the keyup event.
-		lParam = lParam | (MapVirtualKey('D', MAPVK_VK_TO_VSC) << 16);// Scan code
-		lParam = lParam | (0x1 << 24);					// Extended key flag
-
-		SendMessage(eveWindow, WM_KEYUP, 'D', lParam);
-		cout << "Done!" << endl;
-		Sleep(1000);
-	}
-}
-*/
-
 int main() {
-	EnumWindows(FindEveWindowProc, NULL);
-	if(eveWindow == NULL) {
-		cout << "Could not find EVE window, closing. Make sure EVE is open before running!" << endl;
-		Sleep(10000);
-		return 0;
-	}
+	// TODO: Implement reconnecting and connection drop. The image name is "connlist.bmp"
 
-	//notepadTest();
+	EnumWindows(FindEveWindowProc, NULL);
+	if(eveWindow == NULL)
+		fatalExit("Could not find EVE window, closing. Make sure EVE is open before running!");
 
 	SetForegroundWindow(eveWindow);
 	Sleep(500);
@@ -133,9 +106,7 @@ int main() {
 		}
 	}
 	else {
-		cout << "We have no idea where you are, are you okay? Exiting." << endl;
-		Sleep(10000);
-		return 0;
+		fatalExit("We have no idea where you are, are you okay? Exiting.");
 	}
 
 	while(1) {
@@ -227,10 +198,7 @@ bool isInSystem(string systemName) {
 
 	openOverviewStations();
 
-	ostringstream os;
-	os << "nav_" << systemName << ".bmp";					// Build the search string for the overview.
-	string imgStr = "nav_" + systemName + ".bmp";
-
+	string imgStr = "nav_" + systemName + ".bmp";			// Build the search string for the overview.
 	return isImageOnScreen(imgStr, 0.99);					// If the system name is shown in the stations overview, we are in this system.
 }
 
@@ -433,6 +401,7 @@ void _openOverview(string name) {
 	moveMouseAway();					// Move the mouse out of the way to not get in the way of image recognition.
 
 	clickImageOnScreen(name, 0.95);
+	Sleep(200);							// Give it some time to open the tab.
 }
 
 void openOverviewGates() {
@@ -547,18 +516,14 @@ bool waitForSystem(string systemName) {
 bool jumpToSystem(string systemName) {
 	openOverviewGates();
 
-	ostringstream os;									// Build the string so we can search for it in the overview.
-	os << "nav_" << systemName << ".bmp";
-	string navImg = os.str();
+	string navImg = "nav_" + systemName + ".bmp";
 
 	bool result = false;
 
 	if(isImageOnScreen(navImg, 0.98))					// Check if the system we want to go to exists.
 		result = clickImageOnScreen(navImg, 0.98);
 	else {												// Also check if it's highlighted.
-		os.str().clear();								// Reset the string stream.
-		os << "nav_" << systemName << "_s.bmp";
-		navImg = os.str();
+		navImg = "nav_" + systemName + "_s.bmp";
 		if(isImageOnScreen(navImg, 0.98))
 			result = clickImageOnScreen(navImg, 0.98);
 	}
@@ -573,21 +538,6 @@ bool jumpToSystem(string systemName) {
 	}
 
 	return result;
-}
-
-BOOL CALLBACK FindEveWindowProc(HWND hwnd, LPARAM lParam) {
-	char className[80];
-	char title[80];
-	GetClassNameA(hwnd, className, sizeof(className));
-	GetWindowTextA(hwnd, title, sizeof(title));
-
-	if(!strncmp(title, "EVE -", 5)) {
-		cout << "Window title: " << title << endl;
-		cout << "Class name: " << className << endl;
-		eveWindow = hwnd;
-	}
-
-	return TRUE;
 }
 
 // Use caching and lazy evaluation for things like this.
@@ -618,7 +568,7 @@ void setOverviewLocation() {
 	if(corr < 0.99)
 		fatalExit("Failed to find overview location!");
 
-	Mat templ = imread("nav_overviewloc.bmp");
+	Mat templ = safeImageRead("nav_overviewloc.bmp");
 	p.x += templ.cols / 2;				// Next we update the location to the bottom right of the template
 	p.y += templ.rows / 2;				// since findOnScreen() gives the location of the center of the template.
 
@@ -633,4 +583,19 @@ void clickOnShip() {
 
 void moveMouseAway() {
 	moveMouse(width - 20, height - 20, 0);
+}
+
+BOOL CALLBACK FindEveWindowProc(HWND hwnd, LPARAM lParam) {
+	char className[80];
+	char title[80];
+	GetClassNameA(hwnd, className, sizeof(className));
+	GetWindowTextA(hwnd, title, sizeof(title));
+
+	if(!strncmp(title, "EVE -", 5)) {
+		cout << "Window title: " << title << endl;
+		cout << "Class name: " << className << endl;
+		eveWindow = hwnd;
+	}
+
+	return TRUE;
 }

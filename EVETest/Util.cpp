@@ -35,6 +35,9 @@ void fatalExit(string msg) {
 	cout << "Fatal: " << msg << endl;
 	cout << "Exiting in 30 seconds." << endl;
 	Sleep(30000);
+	int a = 0;
+	cin >> a;
+
 	exit(1);
 }
 

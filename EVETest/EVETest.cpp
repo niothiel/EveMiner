@@ -48,7 +48,7 @@ HWND eveWindow;			// Our global handle to the eve window
 int width;				// Client window resolution
 int height;
 
-#define NUM_MINING_SITES 3	// Set to 3 because the 4th one requires double warp
+#define NUM_MINING_SITES 3	// Set to 3 because the 4th one requires double warp, whoops.
 string miningSites[] = {
 	"rmenu_mining1.bmp",
 	"rmenu_mining2.bmp",
@@ -59,6 +59,7 @@ int curSiteIdx = 0;
 
 #define VELD_PRICE 17.15
 #define VELD_CAPACITY 231000
+#define NUM_LASERS 2
 
 bool runOnce = true;// Flag for runOnce events that have to happen when undocked.
 
@@ -115,20 +116,13 @@ int main() {
 		undock();
 
 		if(!isDocked() && runOnce) {					// Reset the overview by scrolling up on it so the closest objects appear on the screen.
-			// Don't really need to scroll the overview very much.
-			//MoveMouse(width - 80, height / 3, 0);		// Move mouse to the overview
-			//for(int x = 0; x < 10; x++) {				// Scroll up on the overview to make sure the closest distance things are up first.
-			//	scrollMouseUp();
-			//	Sleep(200);
-			//}
-
 			setOverviewLocation();						// Find and set overviewLoc to the location of the first entry in the overview.
 														// TODO: This is going to cause a problem, need to have a better way to initialize.
 														// Or to stop using the GOTO's, because they will fail for miners.
 			runOnce = false;
 		}
 
-		cout << "Heading to Destination" << endl;
+		cout << "Heading to Frarn to mine" << endl;
 		jumpToSystem("frarn");
 
 		selectRightClickMenu(miningSites[curSiteIdx], "rmenu_warpto.bmp");// Warp to mining waypoint.
@@ -217,7 +211,7 @@ bool waitForWarp() {
 
 	cout << "Warp detected!" << endl;
 
-	t.setInterval(60000);		// Another timeout for how long you're in warp. I think time dilation would screw this up, oh well, it's not perfect.
+	t.setInterval(80000);		// Another timeout for how long you're in warp. I think time dilation would screw this up, oh well, it's not perfect.
 	t.start();
 	while(isInWarp()) {
 		if(t.isDone()) {
@@ -260,8 +254,8 @@ bool selectAsteroid() {
 	double asteroidDistance = getDistance(p.x, p.y);
 	cout << "Our asteroid distance is: " << asteroidDistance << " m" << endl;
 											// Find how far away the asteroid is.
-	if(asteroidDistance > 20 * 1000) {		// If it's over 20km then we say screw it.
-		cout << "The selected asteroid is further than 20km away." << endl;
+	if(asteroidDistance > 14 * 1000) {		// If it's over 14km then we say screw it.
+		cout << "The selected asteroid is further than 14km away." << endl;
 		return false;
 	}
 
@@ -274,8 +268,9 @@ bool selectAsteroid() {
 }
 
 void fireMiningLasers() {
-	pressKey(VK_F1);
-	pressKey(VK_F2);
+	for(int x = 0; x < NUM_LASERS; x++) {
+		pressKey(VK_F1 + x);	// Vkeys for the f's are 0x70..0x7x starting with F1
+	}
 }
 
 bool approachAndFireMiningLasers() {
@@ -344,6 +339,7 @@ bool selectRightClickMenu(string firstAction) {
 
 	if(!clickImageOnScreen(firstAction, 0.95)) {
 		cout << "Failed to find/select option in first menu" << endl;
+		fatalExit("See previous message");
 		return false;
 	}
 	return true;
@@ -358,11 +354,15 @@ bool selectRightClickMenu(string firstAction, string secondAction) {
 
 	int x = ptMouse.x - RMENU_WIDTH / 2 - 20;
 	int y = ptMouse.y;						// Move the mouse to the left, just past the menu.
+	moveMouse(x, y, 0);
 
-	moveMouse(x, y, 0);						// Clickety click!
+	y = height - 10;
+
+	moveMouse(x, y, 0);						// Move the mouse again to the bottom of second menu.
 
 	if(!clickImageOnScreen(secondAction, 0.95)) {
 		cout << "Failed to find/select option in second menu" << endl;
+		fatalExit("See previous message");
 		return false;
 	}
 	return true;
@@ -374,8 +374,6 @@ bool openInv() {
 		pressKey('C');					// Press C. The shortcut "ALT-C" should open up the inventory.
 		keyUp(VK_MENU);					// Release alt.
 	}
-	//else
-	//	cout << "Looks like the inventory is already open!" << endl;
 
 	Sleep(300);							// Give it a little bit of time to actually open the inventory.
 
@@ -503,6 +501,7 @@ bool waitForSystem(string systemName) {
 	while(!isInSystem(systemName)) {
 		if(t.isDone()) {
 			cout << "Error waiting for current location: " << systemName << endl;
+			fatalExit("");
 			return false;
 		}
 		Sleep(500);
